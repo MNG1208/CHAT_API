@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 1.5%;
+            background-color: #f4f4f4;
+        }
+
+        .sent-message {
+            color: green;
+            /* Color para mensajes enviados */
+            font-weight: bold;
+        }
+
+        .received-message {
+            color: blue;
+            /* Color para mensajes recibidos */
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+        }
+
+        input,
+        button,
+        select {
+            margin-top: 5px;
+        }
+
+        button {
+            background-color: #4caf50;
+            color: #fff;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            background-color: #aaa;
+            cursor: not-allowed;
+        }
+
+        #chat {
+            display: none;
+            margin-top: 20px;
+        }
+
+        #chat p {
+            margin: 5px 0;
+        }
+
+        #messageInput {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Soporte Técnico</h1>
+    <label for="usernameInput">Username:</label>
+    <input type="text" id="usernameInput" placeholder="Enter your username...">
+    <button onclick="connectWebSocket()">Connect</button>
+
+    <div id="chat" style="display:none;"></div>
+    <select id="recipientSelect">
+        <option value="public">Público</option>
+        <!-- Los usuarios se agregarán automáticamente aquí -->
+    </select>
+    <input type="text" id="messageInput" placeholder="Type your message..." disabled>
+    <button onclick="sendMessage()" disabled>Send</button>
+
+    <script>
+        var ws;
+        var usernameInput = document.getElementById("usernameInput");
+        var chatDiv = document.getElementById("chat");
+        var messageInput = document.getElementById("messageInput");
+        var recipientSelect = document.getElementById("recipientSelect");
+
+        function connectWebSocket() {
+            var username = usernameInput.value;
+            if (username.trim() !== "") {
+                ws = new WebSocket(`ws://localhost:8000/ws/${username}`);
+                ws.onopen = function (event) {
+                    // Hide username input and show chat controls
+                    usernameInput.disabled = true;
+                    document.querySelector('button').disabled = true;
+                    chatDiv.style.display = "block";
+                    messageInput.disabled = false;
+                    recipientSelect.disabled = false;
+                    document.querySelector('button[onclick="connectWebSocket()"]').disabled = true;
+                    document.querySelector('button[onclick="sendMessage()"]').disabled = false;
+                };
+
+                ws.onmessage = function (event) {
+                    var message = event.data;
+
+                    if (message.startsWith("/userlist ")) {
+                        // Actualizar la lista de usuarios en el combo
+                        var userList = message.slice("/userlist ".length).split(", ");
+
+                        // Limpiar las opciones existentes
+                        recipientSelect.innerHTML = "";
+
+                        // Agregar las opciones actualizadas
+                        recipientSelect.options.add(new Option("Público", "public"));
+                        for (var i = 0; i < userList.length; i++) {
+                            recipientSelect.options.add(new Option(userList[i], userList[i]));
+                        }
+                    } else {
+                        // Procesar otros tipos de mensajes
+                        var senderUsername = message.split(":")[0];
+                        var messageContent = message.split(":").slice(1).join(":");
+                        var messageToShow = `<p><strong>${senderUsername}:</strong> ${messageContent}</p>`;
+                        chatDiv.innerHTML += messageToShow;
+                    }
+                };
+
+                ws.onclose = function (event) {
+                    alert("Connection closed. Please reload the page to reconnect.");
+                };
+            } else {
+                alert("Please enter a valid username.");
+            }
+        }
+
+        function sendMessage() {
+            var message = messageInput.value;
+            var recipient = recipientSelect.value;
+
+            // Verificar si el mensaje es público o privado
+            if (recipient === "public") {
+                ws.send(`/public ${message}`);
+            } else {
+                ws.send(`/private ${recipient} ${message}`);
+            }
+
+            messageInput.value = "";
+        }
+    </script>
+</body>
+
+</html>
