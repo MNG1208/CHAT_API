@@ -101,7 +101,7 @@
         function connectWebSocket() {
             var username = usernameInput.value;
             if (username.trim() !== "") {
-                ws = new WebSocket(`ws://limack.gerdoc.com/servicio_tecnico/ws/${username}`);
+                ws = new WebSocket(`ws://limack.gerdoc.com:8000/ws/${username}`);
                 ws.onopen = function (event) {
                     // Hide username input and show chat controls
                     usernameInput.disabled = true;
